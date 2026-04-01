@@ -27,18 +27,19 @@ def main():
     metadata_model = create_presentation_metadata_model(presentation_columns)
     excel_column_names = get_excel_column_names(presentation_columns)
 
-    # raw_pptx_files = get_all_pptx_files(library_drive_id, headers)
-    raw_pptx_files = [
-        get_pptx_file(library_drive_id, item_id, headers)
-        for item_id in [
-            "01I7HKCO3RVKMEHQRDR5GZJS6QR56L6LCY",
-            # "01I7HKCO4N6ZP6BHCCCVBJDSLM4WQMMQ3Q",
-            # "01I7HKCO5IQU3OKDVXEJHYBUP7LAFU4UHH",
-            # "01I7HKCO4SPWFCOVNN7JAL4QDULH5PPCYJ",
-            # "01I7HKCO6FJRJTI7CXJRAISZFRGAYIPMPU",
-            # "01I7HKCO7VKOUI5SISPVGITFBOSTIWTI3H",
-        ]
-    ]
+    raw_pptx_files = get_all_pptx_files(library_drive_id, headers)
+    # Use for testing.
+    # raw_pptx_files = [
+    #     get_pptx_file(library_drive_id, item_id, headers)
+    #     for item_id in [
+    #         "01I7HKCO3RVKMEHQRDR5GZJS6QR56L6LCY",
+    #         # "01I7HKCO4N6ZP6BHCCCVBJDSLM4WQMMQ3Q",
+    #         # "01I7HKCO5IQU3OKDVXEJHYBUP7LAFU4UHH",
+    #         # "01I7HKCO4SPWFCOVNN7JAL4QDULH5PPCYJ",
+    #         # "01I7HKCO6FJRJTI7CXJRAISZFRGAYIPMPU",
+    #         # "01I7HKCO7VKOUI5SISPVGITFBOSTIWTI3H",
+    #     ]
+    # ]
 
     final_pptx_objects = []
     for pptx_file in raw_pptx_files:
