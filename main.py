@@ -6,11 +6,22 @@ from typing import Literal
 from dotenv import load_dotenv
 import msal
 from openai import OpenAI
+from openpyxl import Workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
 from pptx import Presentation
 from pydantic import BaseModel, Field
 import requests
 
 load_dotenv()
+
+EXCEL_CELL_CHARACTER_LIMIT = 32767
+SLIDE_BREAK = "\n\n--- SLIDE BREAK ---\n\n"
+DEFAULT_DATA_ROW_HEIGHT = 15
+MINIMUM_COLUMN_WIDTH = 20
+GENERATED_BY_AI_SUFFIX = "*"
+OUTPUT_DIR = "output"
 
 
 class PresentationMetadata(BaseModel):
@@ -41,6 +52,13 @@ class PresentationMetadata(BaseModel):
             "rounding rules as duration_estimate_minutes."
         )
     )
+
+
+def get_openai_client() -> OpenAI:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is missing from the environment")
+    return OpenAI(api_key=api_key)
 
 
 def get_site_id(site_hostname, site_path, headers):
@@ -107,13 +125,6 @@ def extract_slide_text_from_pptx_bytes(pptx_bytes) -> list[str]:
     return slides
 
 
-def get_openai_client() -> OpenAI:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY is missing from the environment")
-    return OpenAI(api_key=api_key)
-
-
 def generate_ai_metadata(
     client: OpenAI,
     *,
@@ -122,7 +133,7 @@ def generate_ai_metadata(
     number_of_slides: int,
     average_words_per_slide: float,
 ) -> PresentationMetadata:
-    entire_slide_text = "\n\n--- SLIDE BREAK ---\n\n".join(slide_texts)
+    entire_slide_text = SLIDE_BREAK.join(slide_texts)
 
     response = client.responses.parse(
         model="gpt-4.1",
@@ -152,6 +163,63 @@ def generate_ai_metadata(
         raise ValueError(f"OpenAI did not return structured metadata for {name}")
 
     return response.output_parsed
+
+
+def sanitize_excel_value(value):
+    if not isinstance(value, str):
+        return value
+    cleaned = ILLEGAL_CHARACTERS_RE.sub("", value)
+    return cleaned[:EXCEL_CELL_CHARACTER_LIMIT]
+
+
+def serialize_object_for_excel(obj: dict) -> dict:
+    serialized = {}
+
+    for key, value in obj.items():
+        if key == "slide_texts":
+            serialized[key] = sanitize_excel_value(SLIDE_BREAK.join(map(str, value)))
+        elif isinstance(value, list):
+            serialized[key] = sanitize_excel_value(", ".join(map(str, value)))
+        elif isinstance(value, (dict, tuple, set)):
+            serialized[key] = sanitize_excel_value(json.dumps(value))
+        else:
+            serialized[key] = sanitize_excel_value(value)
+
+    return serialized
+
+
+def write_objects_to_excel(
+    objects: list[dict], output_filename: str = "workshop_catalog.xlsx"
+) -> None:
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Presentations"
+
+    output_path = os.path.join(OUTPUT_DIR, output_filename)
+
+    if not objects:
+        workbook.save(output_path)
+        return
+
+    excel_objects = [serialize_object_for_excel(obj) for obj in objects]
+    headers = list(excel_objects[0].keys())
+    worksheet.append(headers)
+
+    for column_index, header in enumerate(headers, start=1):
+        column_letter = get_column_letter(column_index)
+        worksheet.column_dimensions[column_letter].width = max(
+            len(str(header)) + 2, MINIMUM_COLUMN_WIDTH
+        )
+
+    for obj in excel_objects:
+        worksheet.append([obj.get(header) for header in headers])
+
+    for row in worksheet.iter_rows(min_row=2):
+        worksheet.row_dimensions[row[0].row].height = DEFAULT_DATA_ROW_HEIGHT
+        for cell in row:
+            cell.alignment = Alignment(wrap_text=False, vertical="top")
+
+    workbook.save(output_path)
 
 
 def main():
@@ -223,15 +291,15 @@ def main():
                 **pptx_file,
                 "number_of_slides": number_of_slides,
                 "average_words_per_slide": average_words_per_slide,
-                "theme*": ai_metadata.theme,
-                "description*": ai_metadata.description,
-                "duration_estimate_mins*": ai_metadata.duration_estimate_minutes,
-                "audience*": ai_metadata.audience,
-                "activity_length_mins*": ai_metadata.activity_length_minutes,
+                f"theme{GENERATED_BY_AI_SUFFIX}": ai_metadata.theme,
+                f"description{GENERATED_BY_AI_SUFFIX}": ai_metadata.description,
+                f"duration_estimate_mins{GENERATED_BY_AI_SUFFIX}": ai_metadata.duration_estimate_minutes,
+                f"audience{GENERATED_BY_AI_SUFFIX}": ai_metadata.audience,
+                f"activity_length_mins{GENERATED_BY_AI_SUFFIX}": ai_metadata.activity_length_minutes,
             }
         )
 
-    print(json.dumps(final_pptx_objects, indent=2))
+    write_objects_to_excel(final_pptx_objects)
 
 
 if __name__ == "__main__":
