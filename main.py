@@ -1,3 +1,5 @@
+import logging
+
 from dotenv import load_dotenv
 from column_helpers import (
     build_presentation_row,
@@ -16,6 +18,9 @@ from microsoft import (
 )
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -28,6 +33,10 @@ def main():
     excel_column_names = get_excel_column_names(presentation_columns)
 
     raw_pptx_files = get_all_pptx_files(library_drive_id, headers)
+    logger.info(
+        "Gathered %s presentation files for Excel export.",
+        len(raw_pptx_files),
+    )
     # Use for testing.
     # raw_pptx_files = [
     #     get_pptx_file(library_drive_id, item_id, headers)
@@ -42,7 +51,8 @@ def main():
     # ]
 
     final_pptx_objects = []
-    for pptx_file in raw_pptx_files:
+    total_files = len(raw_pptx_files)
+    for index, pptx_file in enumerate(raw_pptx_files, start=1):
         slide_texts, number_of_slides, average_words_per_slide = (
             get_ai_generation_inputs(pptx_file, generator_registry)
         )
@@ -58,6 +68,9 @@ def main():
         final_pptx_objects.append(
             build_presentation_row(pptx_file, presentation_columns, ai_metadata)
         )
+
+        if index % 5 == 0 or index == total_files:
+            logger.info("Processed %s/%s rows for Excel export.", index, total_files)
 
     write_objects_to_excel(final_pptx_objects, headers=excel_column_names)
 

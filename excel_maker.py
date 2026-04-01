@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 from configuration import (
@@ -13,26 +14,60 @@ from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 
+logger = logging.getLogger(__name__)
 
-def sanitize_excel_value(value):
+
+def sanitize_excel_value(
+    value, *, field_name: str | None = None, object_name: str | None = None
+):
     if not isinstance(value, str):
         return value
     cleaned = ILLEGAL_CHARACTERS_RE.sub("", value)
+    if len(cleaned) > EXCEL_CELL_CHARACTER_LIMIT:
+        label = object_name or "unknown object"
+        column = field_name or "unknown field"
+        logger.warning(
+            (
+                "Truncated text for '%s' in column '%s': %s chars exceeds Excel "
+                "cell limit of %s chars."
+            ),
+            label,
+            column,
+            len(cleaned),
+            EXCEL_CELL_CHARACTER_LIMIT,
+        )
     return cleaned[:EXCEL_CELL_CHARACTER_LIMIT]
 
 
 def serialize_object_for_excel(obj: dict) -> dict:
     serialized = {}
+    object_name = str(obj.get("name", obj.get("id", "unknown object")))
 
     for key, value in obj.items():
         if key == "slide_texts":
-            serialized[key] = sanitize_excel_value(SLIDE_BREAK.join(map(str, value)))
+            serialized[key] = sanitize_excel_value(
+                SLIDE_BREAK.join(map(str, value)),
+                field_name=key,
+                object_name=object_name,
+            )
         elif isinstance(value, list):
-            serialized[key] = sanitize_excel_value(", ".join(map(str, value)))
+            serialized[key] = sanitize_excel_value(
+                ", ".join(map(str, value)),
+                field_name=key,
+                object_name=object_name,
+            )
         elif isinstance(value, (dict, tuple, set)):
-            serialized[key] = sanitize_excel_value(json.dumps(value))
+            serialized[key] = sanitize_excel_value(
+                json.dumps(value),
+                field_name=key,
+                object_name=object_name,
+            )
         else:
-            serialized[key] = sanitize_excel_value(value)
+            serialized[key] = sanitize_excel_value(
+                value,
+                field_name=key,
+                object_name=object_name,
+            )
 
     return serialized
 
