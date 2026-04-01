@@ -54,7 +54,8 @@ def get_ai_generation_inputs(
     item: dict[str, Any],
     registry: GeneratorRegistry,
 ) -> tuple[list[str], int, float]:
-    slide_texts = list(registry.get_slide_texts_for_item(item["id"]))
+    drive_id = item.get("parentReference", {}).get("driveId", registry.default_drive_id)
+    slide_texts = list(registry.get_slide_texts_for_item(drive_id, item["id"]))
     number_of_slides = len(slide_texts)
     average_words_per_slide = (
         sum(len(slide.split()) for slide in slide_texts) / number_of_slides

@@ -2,6 +2,7 @@ from .graph import (
     download_pptx_file_content,
     get_all_pptx_files,
     get_drive_id,
+    get_drive_item_by_path,
     get_pptx_file,
     get_site_id,
 )
@@ -32,6 +33,7 @@ __all__ = [
     "excel_setup",
     "get_all_pptx_files",
     "get_drive_id",
+    "get_drive_item_by_path",
     "get_pptx_file",
     "get_site_id",
     "GraphDriveItem",

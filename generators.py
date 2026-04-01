@@ -7,14 +7,17 @@ from presentation_reader import extract_slide_text_from_pptx_bytes
 
 
 class GeneratorRegistry:
-    def __init__(self, *, drive_id: str, headers: GraphHeaders):
-        self.drive_id = drive_id
+    def __init__(self, *, default_drive_id: str, headers: GraphHeaders):
+        self.default_drive_id = default_drive_id
         self.headers = headers
 
     @cache
-    def get_slide_texts_for_item(self, item_id: str) -> tuple[str, ...]:
-        pptx_bytes = download_pptx_file_content(self.drive_id, item_id, self.headers)
+    def get_slide_texts_for_item(self, drive_id: str, item_id: str) -> tuple[str, ...]:
+        pptx_bytes = download_pptx_file_content(drive_id, item_id, self.headers)
         return tuple(extract_slide_text_from_pptx_bytes(pptx_bytes))
+
+    def _get_drive_id_for_item(self, item: GraphDriveItem) -> str:
+        return item.get("parentReference", {}).get("driveId", self.default_drive_id)
 
     def identity_generator(self, source_key: str):
         def generate(item: GraphDriveItem) -> Any:
@@ -25,7 +28,8 @@ class GeneratorRegistry:
 
     def slide_texts_generator(self):
         def generate(item: GraphDriveItem) -> list[str]:
-            return list(self.get_slide_texts_for_item(item["id"]))
+            drive_id = self._get_drive_id_for_item(item)
+            return list(self.get_slide_texts_for_item(drive_id, item["id"]))
 
         generate.is_ai = False
         return generate

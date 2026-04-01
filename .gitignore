@@ -10,5 +10,6 @@ wheels/
 .venv
 
 output/*.xlsx
+output/workshop_catalog_checkpoint.json
 
 **/.DS_Store
