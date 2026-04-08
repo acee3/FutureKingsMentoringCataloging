@@ -5,7 +5,7 @@ import os
 import msal
 
 from app_types import DriveSource, ExcelSetup
-from configuration import DRIVE_SOURCES
+from configuration import DEFAULT_SOURCE, DRIVE_SOURCES
 
 from .graph import get_drive_id, get_drive_item_by_path, get_site_id
 from .types import GraphHeaders
@@ -43,6 +43,7 @@ def excel_setup() -> ExcelSetup:
         source: DriveSource = {
             "name": raw_source["name"],
             "drive_id": drive_id,
+            "is_default": raw_source == DEFAULT_SOURCE,
         }
         folder = raw_source.get("folder")
         if folder:

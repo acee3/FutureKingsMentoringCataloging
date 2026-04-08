@@ -81,6 +81,8 @@ class GraphDriveItem(TypedDict, total=False):
     fileSystemInfo: NotRequired[GraphFileSystemInfo]
     shared: NotRequired[GraphShared]
     folder: NotRequired[GraphFolderFacet]
+    configuredSourceFolder: NotRequired[str]
+    configuredSourceName: NotRequired[str]
     odata_context: NotRequired[str]
     download_url: NotRequired[str]
     additional_data: NotRequired[dict[str, Any]]

@@ -69,7 +69,11 @@ def get_drive_item_by_path(
 
 
 def get_all_pptx_files(
-    drive_id: str, headers: GraphHeaders, item_id: str = ""
+    drive_id: str,
+    headers: GraphHeaders,
+    item_id: str = "",
+    configured_source_name: str = "",
+    configured_source_folder: str = "",
 ) -> list[GraphDriveItem]:
     """Recursively collect every `.pptx` file below a drive or folder.
 
@@ -78,6 +82,8 @@ def get_all_pptx_files(
         headers: Auth headers for Graph requests.
         item_id: Optional folder ID. If omitted, scanning starts at the drive
             root.
+        configured_source_name: Human-readable drive name from configuration.
+        configured_source_folder: Human-readable folder path from configuration.
     """
     item_path = f"items/{item_id}" if item_id else "root"
     url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/{item_path}/children"
@@ -87,22 +93,43 @@ def get_all_pptx_files(
 
     subfolders = [x for x in items if "folder" in x]
     subfolder_pptx_files = [
-        get_all_pptx_files(drive_id, headers, x["id"]) for x in subfolders
+        get_all_pptx_files(
+            drive_id,
+            headers,
+            x["id"],
+            configured_source_name,
+            configured_source_folder,
+        )
+        for x in subfolders
     ]
     pptx_files = [x for x in items if x["name"].lower().endswith(".pptx")]
+    for pptx_file in pptx_files:
+        if configured_source_name:
+            pptx_file["configuredSourceName"] = configured_source_name
+        if configured_source_folder:
+            pptx_file["configuredSourceFolder"] = configured_source_folder
     return [f for f in pptx_files] + [
         f for subfolder_files in subfolder_pptx_files for f in subfolder_files
     ]
 
 
 def get_pptx_file(
-    drive_id: str, item_id: str, headers: GraphHeaders
+    drive_id: str,
+    item_id: str,
+    headers: GraphHeaders,
+    configured_source_name: str = "",
+    configured_source_folder: str = "",
 ) -> GraphDriveItem:
     """Fetch metadata for one PowerPoint item by ID."""
     url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}"
     resp = requests.get(url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
     resp.raise_for_status()
-    return resp.json()
+    item: GraphDriveItem = resp.json()
+    if configured_source_name:
+        item["configuredSourceName"] = configured_source_name
+    if configured_source_folder:
+        item["configuredSourceFolder"] = configured_source_folder
+    return item
 
 
 def download_pptx_file_content(

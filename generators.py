@@ -13,6 +13,17 @@ from microsoft.types import GraphDriveItem, GraphHeaders
 from presentation_reader import extract_slide_text_from_pptx_bytes
 
 
+def get_configured_source_path(item: GraphDriveItem) -> str:
+    """Return the human-readable configured source attached to an item."""
+    source_name = item.get("configuredSourceName", "").strip()
+    source_folder = item.get("configuredSourceFolder", "").strip()
+    if source_name and source_folder:
+        return f"{source_name}/{source_folder}"
+    if source_name:
+        return source_name
+    return "<unknown source>"
+
+
 class GeneratorRegistry:
     """Create reusable generator callables for presentation columns.
 
@@ -50,10 +61,10 @@ class GeneratorRegistry:
         return generate
 
     def presentation_path_generator(self):
-        """Build a generator that returns the SharePoint/OneDrive folder path."""
+        """Build a generator that returns the configured source context."""
 
         def generate(item: GraphDriveItem) -> str:
-            return item.get("parentReference", {}).get("path", "")
+            return get_configured_source_path(item)
 
         generate.is_ai = False
         return generate

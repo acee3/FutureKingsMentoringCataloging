@@ -46,7 +46,7 @@ def generate_ai_metadata(
     Args:
         client: Authenticated OpenAI client.
         name: Presentation file name.
-        presentation_path: Folder path in SharePoint/OneDrive.
+        presentation_path: Configured drive/folder context for the presentation.
         slide_texts: Plain text extracted from every slide.
         number_of_slides: Count of slides in the deck.
         average_words_per_slide: Simple density signal used in the prompt.

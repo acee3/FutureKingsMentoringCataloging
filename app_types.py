@@ -37,6 +37,7 @@ class DriveSource(TypedDict):
 
     name: str
     drive_id: str
+    is_default: bool
     folder: NotRequired[str]
     folder_id: NotRequired[str]
 

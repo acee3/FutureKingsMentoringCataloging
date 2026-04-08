@@ -30,7 +30,8 @@ from column_helpers import (
 from dotenv import load_dotenv
 from configuration import get_presentation_columns
 from excel_maker import write_objects_to_excel
-from generators import GeneratorRegistry
+from generators import GeneratorRegistry, get_configured_source_path
+import json
 from llm_work import generate_ai_metadata, get_openai_client
 from microsoft import (
     excel_setup,
@@ -125,8 +126,13 @@ def main() -> None:
     if not drive_sources:
         raise ValueError("configuration.DRIVE_SOURCES must contain at least one drive")
 
+    # Backward-compatible alias for the old single-drive workflow. This is
+    # mainly useful for the commented testing block lower in this file.
+    library_drive_id = [s["drive_id"] for s in drive_sources if s.get("is_default")][0]
+    library_drive_source = next(s for s in drive_sources if s.get("is_default"))
+
     generator_registry = GeneratorRegistry(
-        default_drive_id=drive_sources[0]["drive_id"],
+        default_drive_id=library_drive_id,
         headers=headers,
     )
     presentation_columns = get_presentation_columns(generator_registry)
@@ -157,13 +163,21 @@ def main() -> None:
                     source["drive_id"],
                     headers,
                     source.get("folder_id", ""),
+                    source["name"],
+                    source.get("folder", ""),
                 )
             )
         pending_pptx_files = dedupe_pptx_files(pending_pptx_files)
         # Example test-only shortcut: replace the full discovery result with a
         # hand-picked list of file IDs when you want to debug one deck quickly.
         # pending_pptx_files = [
-        #     get_pptx_file(library_drive_id, item_id, headers)
+        #     get_pptx_file(
+        #         library_drive_id,
+        #         item_id,
+        #         headers,
+        #         library_drive_source["name"],
+        #         library_drive_source.get("folder", ""),
+        #     )
         #     for item_id in [
         #         "01I7HKCO3RVKMEHQRDR5GZJS6QR56L6LCY",
         #         # "01I7HKCO4N6ZP6BHCCCVBJDSLM4WQMMQ3Q",
@@ -196,7 +210,7 @@ def main() -> None:
         ai_metadata = generate_ai_metadata(
             openai_client,
             name=pptx_file["name"],
-            presentation_path=pptx_file.get("parentReference", {}).get("path", ""),
+            presentation_path=get_configured_source_path(pptx_file),
             slide_texts=slide_texts,
             number_of_slides=number_of_slides,
             average_words_per_slide=average_words_per_slide,

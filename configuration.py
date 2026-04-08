@@ -31,6 +31,7 @@ DRIVE_SOURCES: list[ConfiguredDriveSource] = [
     {"name": "Documents", "folder": "I. Core King Content/II. Workshops"},
     {"name": "Workshops"},
 ]
+DEFAULT_SOURCE: ConfiguredDriveSource = DRIVE_SOURCES[2]
 
 
 def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationColumn]:
