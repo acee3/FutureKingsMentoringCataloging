@@ -1,5 +1,6 @@
-from typing import Any, Callable, Literal, NotRequired, TypedDict
+from typing import Literal
 
+from app_types import ConfiguredDriveSource, PresentationColumn
 from generators import GeneratorRegistry
 
 EXCEL_CELL_CHARACTER_LIMIT = 32767
@@ -10,21 +11,11 @@ GENERATED_BY_AI_SUFFIX = "*"
 OUTPUT_DIR = "output"
 
 
-class ConfiguredDriveSource(TypedDict):
-    name: str
-    folder: NotRequired[str]
-
-
 DRIVE_SOURCES: list[ConfiguredDriveSource] = [
     {"name": "Documents", "folder": "III. Partnerships"},
     {"name": "Documents", "folder": "I. Core King Content/II. Workshops"},
     {"name": "Workshops"},
 ]
-
-
-class PresentationColumn(TypedDict):
-    name: str
-    generator: Callable[[dict[str, Any]], Any]
 
 
 def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationColumn]:

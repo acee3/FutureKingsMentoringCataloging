@@ -1,6 +1,6 @@
 from typing import Any
 
-from configuration import PresentationColumn
+from app_types import PresentationColumn
 from generators import GeneratorRegistry
 from pydantic import BaseModel, Field, create_model
 

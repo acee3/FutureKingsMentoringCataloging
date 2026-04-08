@@ -1,24 +1,12 @@
 import os
-from typing import NotRequired, TypedDict
 
 import msal
 
+from app_types import DriveSource, ExcelSetup
 from configuration import DRIVE_SOURCES
 
 from .graph import get_drive_id, get_drive_item_by_path, get_site_id
 from .types import GraphHeaders
-
-
-class DriveSource(TypedDict):
-    name: str
-    drive_id: str
-    folder: NotRequired[str]
-    folder_id: NotRequired[str]
-
-
-class ExcelSetup(TypedDict):
-    headers: GraphHeaders
-    drive_sources: list[DriveSource]
 
 
 def excel_setup() -> ExcelSetup:

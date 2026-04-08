@@ -1,18 +1,13 @@
 import json
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any
 
+from app_types import RunCheckpoint
 from configuration import OUTPUT_DIR
 from microsoft.types import GraphDriveItem
 
 CHECKPOINT_FILENAME = "workshop_catalog_checkpoint.json"
 CHECKPOINT_PATH = Path(OUTPUT_DIR) / CHECKPOINT_FILENAME
-
-
-class RunCheckpoint(TypedDict):
-    processed_rows: list[dict[str, Any]]
-    pending_items: list[GraphDriveItem]
-
 
 def checkpoint_exists() -> bool:
     return CHECKPOINT_PATH.exists()
