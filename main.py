@@ -75,7 +75,7 @@ def main():
     headers = setup["headers"]
     drive_sources = setup["drive_sources"]
     if not drive_sources:
-        raise ValueError("DRIVE_SOURCES must contain at least one configured drive")
+        raise ValueError("configuration.DRIVE_SOURCES must contain at least one drive")
 
     generator_registry = GeneratorRegistry(
         default_drive_id=drive_sources[0]["drive_id"],
@@ -157,9 +157,7 @@ def main():
             build_presentation_row(pptx_file, presentation_columns, ai_metadata)
         )
         pending_pptx_files.pop(0)
-        should_save_checkpoint = (
-            index % 5 == 0 or not pending_pptx_files
-        )
+        should_save_checkpoint = index % 5 == 0 or not pending_pptx_files
         if should_save_checkpoint:
             save_checkpoint(final_pptx_objects, pending_pptx_files)
         write_objects_to_excel(final_pptx_objects, headers=excel_column_names)

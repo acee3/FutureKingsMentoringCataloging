@@ -1,4 +1,4 @@
-from typing import Any, Callable, Literal, TypedDict
+from typing import Any, Callable, Literal, NotRequired, TypedDict
 
 from generators import GeneratorRegistry
 
@@ -8,6 +8,18 @@ DEFAULT_DATA_ROW_HEIGHT = 15
 MINIMUM_COLUMN_WIDTH = 15
 GENERATED_BY_AI_SUFFIX = "*"
 OUTPUT_DIR = "output"
+
+
+class ConfiguredDriveSource(TypedDict):
+    name: str
+    folder: NotRequired[str]
+
+
+DRIVE_SOURCES: list[ConfiguredDriveSource] = [
+    {"name": "Documents", "folder": "III. Partnerships"},
+    {"name": "Documents", "folder": "I. Core King Content/II. Workshops"},
+    {"name": "Workshops"},
+]
 
 
 class PresentationColumn(TypedDict):

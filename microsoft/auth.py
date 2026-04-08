@@ -1,8 +1,9 @@
 import os
-import json
 from typing import NotRequired, TypedDict
 
 import msal
+
+from configuration import DRIVE_SOURCES
 
 from .graph import get_drive_id, get_drive_item_by_path, get_site_id
 from .types import GraphHeaders
@@ -28,7 +29,6 @@ def excel_setup() -> ExcelSetup:
     scopes = ["https://graph.microsoft.com/.default"]
     site_hostname = os.getenv("SITE_HOSTNAME")
     site_path = os.getenv("SITE_PATH")
-    drive_sources_env = os.getenv("DRIVE_SOURCES", "[]")
 
     app = msal.ConfidentialClientApplication(
         client_id,
@@ -41,9 +41,8 @@ def excel_setup() -> ExcelSetup:
     headers: GraphHeaders = {"Authorization": f"Bearer {access_token}"}
     site_id = get_site_id(site_hostname, site_path, headers)
 
-    raw_drive_sources = json.loads(drive_sources_env)
     drive_sources: list[DriveSource] = []
-    for raw_source in raw_drive_sources:
+    for raw_source in DRIVE_SOURCES:
         drive_id = get_drive_id(site_id, raw_source["name"], headers)
         source: DriveSource = {
             "name": raw_source["name"],
