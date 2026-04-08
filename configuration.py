@@ -1,3 +1,16 @@
+"""Project-wide settings and column definitions.
+
+This is the main file to edit when you want to change what the export produces.
+
+- Edit `DRIVE_SOURCES` to choose which Microsoft drives/folders are scanned.
+- Edit `get_presentation_columns(...)` to decide which Excel columns exist.
+- Leave the lower-level implementation details to the other modules.
+
+For a beginner, this file is the safest place to customize behavior because it
+describes *what* to include without requiring you to understand every helper
+function in the codebase.
+"""
+
 from typing import Literal
 
 from app_types import ConfiguredDriveSource, PresentationColumn
@@ -21,6 +34,25 @@ DRIVE_SOURCES: list[ConfiguredDriveSource] = [
 
 
 def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationColumn]:
+    """Define every column that will appear in the exported Excel file.
+
+    Each entry has:
+    - `name`: the final Excel column header
+    - `generator`: a callable that knows how to calculate the value
+
+    There are two broad generator types:
+    - Direct generators: read data straight from Microsoft Graph or from the
+      PowerPoint file itself.
+    - AI generators: describe a field that OpenAI should infer from slide text.
+
+    Args:
+        registry: Factory object that creates the generator functions used in
+            the column definitions.
+
+    Returns:
+        The ordered list of columns for the export. Order matters because it
+        becomes the Excel column order.
+    """
     return [
         {"name": "id", "generator": registry.identity_generator("id")},
         {"name": "name", "generator": registry.identity_generator("name")},
@@ -60,6 +92,9 @@ def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationCo
                 "One or more applicable themes. Only use multiple themes when necessary.",
             ),
         },
+        # The `field_name` passed to `ai_generator(...)` becomes the attribute
+        # name on the Pydantic model returned by OpenAI. The Excel column name
+        # can differ from that internal name.
         {
             "name": f"subtheme{GENERATED_BY_AI_SUFFIX}",
             "generator": registry.ai_generator(

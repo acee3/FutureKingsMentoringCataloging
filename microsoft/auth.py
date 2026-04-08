@@ -1,3 +1,5 @@
+"""Authentication and Microsoft Graph setup helpers."""
+
 import os
 
 import msal
@@ -10,6 +12,12 @@ from .types import GraphHeaders
 
 
 def excel_setup() -> ExcelSetup:
+    """Authenticate with Microsoft Graph and resolve configured drive sources.
+
+    Environment variables are used for both Microsoft authentication and the
+    SharePoint site lookup. The returned structure contains everything the rest
+    of the app needs to start discovering PowerPoint files.
+    """
     tenant_id = os.getenv("TENANT_ID")
     client_id = os.getenv("CLIENT_ID")
     client_secret = os.getenv("CLIENT_SECRET_VALUE")
@@ -38,6 +46,8 @@ def excel_setup() -> ExcelSetup:
         }
         folder = raw_source.get("folder")
         if folder:
+            # Convert a human-readable folder path from configuration into the
+            # folder ID required by downstream Graph API calls.
             folder_item = get_drive_item_by_path(drive_id, folder, headers)
             source["folder"] = folder
             source["folder_id"] = folder_item["id"]

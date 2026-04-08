@@ -1,3 +1,9 @@
+"""Helpers for turning Python dictionaries into an Excel workbook.
+
+The rest of the app deals with plain Python objects. This module converts those
+objects into values that Excel can store safely and then writes the workbook.
+"""
+
 import json
 import logging
 import os
@@ -20,6 +26,11 @@ logger = logging.getLogger(__name__)
 def sanitize_excel_value(
     value, *, field_name: str | None = None, object_name: str | None = None
 ):
+    """Clean a single value so it is safe to store in Excel.
+
+    Excel cells reject some control characters and have a maximum text length.
+    This helper removes illegal characters and truncates overly long strings.
+    """
     if not isinstance(value, str):
         return value
     cleaned = ILLEGAL_CHARACTERS_RE.sub("", value)
@@ -40,6 +51,13 @@ def sanitize_excel_value(
 
 
 def serialize_object_for_excel(obj: dict) -> dict:
+    """Convert complex Python values into Excel-friendly values.
+
+    Examples:
+    - list -> comma-separated string
+    - `slide_texts` list -> one string joined with the configured slide break
+    - dict/tuple/set -> JSON string
+    """
     serialized = {}
     object_name = str(obj.get("name", obj.get("id", "unknown object")))
 
@@ -77,6 +95,11 @@ def write_objects_to_excel(
     output_filename: str = "workshop_catalog.xlsx",
     headers: list[str] | None = None,
 ) -> None:
+    """Write the current export rows to an `.xlsx` file.
+
+    The workbook is rebuilt from scratch each time this function runs. That is
+    simpler and safer than trying to update individual rows in place.
+    """
     workbook = Workbook()
     worksheet = workbook.active
     worksheet.title = "Presentations"
@@ -88,6 +111,7 @@ def write_objects_to_excel(
     worksheet.append(headers)
 
     if not objects:
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
         workbook.save(output_path)
         return
 
@@ -103,8 +127,11 @@ def write_objects_to_excel(
         worksheet.append([obj.get(header) for header in headers])
 
     for row in worksheet.iter_rows(min_row=2):
+        # Keep rows compact by default. Very long values can still be inspected
+        # in Excel's formula bar without forcing giant row heights.
         worksheet.row_dimensions[row[0].row].height = DEFAULT_DATA_ROW_HEIGHT
         for cell in row:
             cell.alignment = Alignment(wrap_text=False, vertical="top")
 
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     workbook.save(output_path)

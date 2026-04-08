@@ -1,3 +1,17 @@
+"""Command-line entry point for building the workshop catalog Excel file.
+
+This file coordinates the whole export process:
+
+1. Read configuration and authenticate with Microsoft Graph.
+2. Discover PowerPoint files in the configured drives/folders.
+3. Extract slide text and ask OpenAI for structured metadata.
+4. Build rows for the Excel sheet.
+5. Save progress to a checkpoint so the run can resume after interruptions.
+
+If you are new to Python, `main()` is the best place to start reading because it
+shows the full sequence of steps at a high level.
+"""
+
 import argparse
 import logging
 
@@ -32,6 +46,12 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
+    """Read command-line flags for the script.
+
+    Returns:
+        argparse.Namespace: Parsed options. Right now the script only supports
+            `--restart-from-scratch`, which clears any saved checkpoint file.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--restart-from-scratch",
@@ -42,6 +62,23 @@ def parse_args() -> argparse.Namespace:
 
 
 def dedupe_pptx_files(items: list[GraphDriveItem]) -> list[GraphDriveItem]:
+    """Remove duplicate PowerPoint items from the discovery list.
+
+    Microsoft Graph can occasionally surface the same presentation more than
+    once depending on how folders are traversed or shared content is exposed.
+    This function keeps the first copy it sees and ignores later duplicates.
+
+    It deduplicates in two ways:
+    - Exact item ID matches.
+    - "Looks like the same file" matches based on name, size, and last
+      modification time.
+
+    Args:
+        items: Raw PowerPoint metadata records returned from Graph.
+
+    Returns:
+        A new list with duplicates removed while preserving order.
+    """
     unique_items: list[GraphDriveItem] = []
     seen_ids: set[str] = set()
     seen_signatures: set[tuple[str, int | None, str]] = set()
@@ -66,7 +103,18 @@ def dedupe_pptx_files(items: list[GraphDriveItem]) -> list[GraphDriveItem]:
     return unique_items
 
 
-def main():
+def main() -> None:
+    """Run the complete export workflow.
+
+    The function is intentionally linear so it is easy to trace:
+    - set up clients and configuration
+    - load or create a checkpoint
+    - process one PowerPoint at a time
+    - write the current results to Excel as progress is made
+
+    The workbook is rewritten after each file so the output on disk stays
+    current even during a long run.
+    """
     args = parse_args()
 
     openai_client = get_openai_client()
@@ -112,7 +160,8 @@ def main():
                 )
             )
         pending_pptx_files = dedupe_pptx_files(pending_pptx_files)
-        # Use for testing.
+        # Example test-only shortcut: replace the full discovery result with a
+        # hand-picked list of file IDs when you want to debug one deck quickly.
         # pending_pptx_files = [
         #     get_pptx_file(library_drive_id, item_id, headers)
         #     for item_id in [
@@ -158,6 +207,8 @@ def main():
             build_presentation_row(pptx_file, presentation_columns, ai_metadata)
         )
         pending_pptx_files.pop(0)
+        # Persist progress regularly so an interrupted run can resume instead of
+        # starting over from the first file again.
         should_save_checkpoint = index % 5 == 0 or not pending_pptx_files
         if should_save_checkpoint:
             save_checkpoint(final_pptx_objects, pending_pptx_files)

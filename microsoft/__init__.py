@@ -1,3 +1,5 @@
+"""Convenience exports for Microsoft-related helpers and types."""
+
 from .graph import (
     download_pptx_file_content,
     get_all_pptx_files,
@@ -21,6 +23,7 @@ from .types import (
 
 
 def excel_setup():
+    """Import auth code lazily so type-only imports stay lightweight."""
     # Import lazily so graph/type consumers do not require auth dependencies
     # like msal just to import the microsoft package.
     from .auth import excel_setup as _excel_setup

@@ -1,3 +1,5 @@
+"""Thin wrappers around the Microsoft Graph HTTP API."""
+
 import logging
 import time
 
@@ -15,6 +17,7 @@ DOWNLOAD_RETRY_BACKOFF_SECONDS = 2
 
 
 def _should_retry(response: Response | None, error: Exception | None) -> bool:
+    """Decide whether a failed download attempt is worth retrying."""
     if isinstance(error, HTTPError):
         error_response = error.response or response
         if error_response is None:
@@ -28,6 +31,7 @@ def _should_retry(response: Response | None, error: Exception | None) -> bool:
 
 
 def get_site_id(site_hostname: str, site_path: str, headers: GraphHeaders) -> str:
+    """Resolve a SharePoint site into its Graph site ID."""
     url = f"https://graph.microsoft.com/v1.0/sites/{site_hostname}:{site_path}"
     resp = requests.get(url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
     resp.raise_for_status()
@@ -36,6 +40,7 @@ def get_site_id(site_hostname: str, site_path: str, headers: GraphHeaders) -> st
 
 
 def get_drive_id(site_id: str, drive_name: str, headers: GraphHeaders) -> str:
+    """Find the Graph drive ID for a human-readable drive name."""
     url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives"
     resp = requests.get(url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
     resp.raise_for_status()
@@ -49,6 +54,7 @@ def get_drive_id(site_id: str, drive_name: str, headers: GraphHeaders) -> str:
 def get_drive_item_by_path(
     drive_id: str, item_path: str, headers: GraphHeaders
 ) -> GraphDriveItem:
+    """Look up a file or folder by its path inside a drive."""
     normalized_item_path = item_path.strip("/")
     if not normalized_item_path:
         url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root"
@@ -65,6 +71,14 @@ def get_drive_item_by_path(
 def get_all_pptx_files(
     drive_id: str, headers: GraphHeaders, item_id: str = ""
 ) -> list[GraphDriveItem]:
+    """Recursively collect every `.pptx` file below a drive or folder.
+
+    Args:
+        drive_id: Microsoft Graph drive ID.
+        headers: Auth headers for Graph requests.
+        item_id: Optional folder ID. If omitted, scanning starts at the drive
+            root.
+    """
     item_path = f"items/{item_id}" if item_id else "root"
     url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/{item_path}/children"
     resp = requests.get(url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
@@ -84,6 +98,7 @@ def get_all_pptx_files(
 def get_pptx_file(
     drive_id: str, item_id: str, headers: GraphHeaders
 ) -> GraphDriveItem:
+    """Fetch metadata for one PowerPoint item by ID."""
     url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}"
     resp = requests.get(url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
     resp.raise_for_status()
@@ -93,6 +108,11 @@ def get_pptx_file(
 def download_pptx_file_content(
     drive_id: str, item_id: str, headers: GraphHeaders
 ) -> bytes:
+    """Download raw bytes for one PowerPoint file.
+
+    Downloads can fail transiently because of throttling or temporary network
+    issues, so this function retries a few times before giving up.
+    """
     url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/content"
     last_error: Exception | None = None
 
