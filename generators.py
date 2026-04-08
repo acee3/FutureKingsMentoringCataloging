@@ -26,6 +26,13 @@ class GeneratorRegistry:
         generate.is_ai = False
         return generate
 
+    def presentation_path_generator(self):
+        def generate(item: GraphDriveItem) -> str:
+            return item.get("parentReference", {}).get("path", "")
+
+        generate.is_ai = False
+        return generate
+
     def slide_texts_generator(self):
         def generate(item: GraphDriveItem) -> list[str]:
             drive_id = self._get_drive_id_for_item(item)

@@ -9,6 +9,8 @@ DEFAULT_DATA_ROW_HEIGHT = 15
 MINIMUM_COLUMN_WIDTH = 15
 GENERATED_BY_AI_SUFFIX = "*"
 OUTPUT_DIR = "output"
+NON_PARTNERSHIP_TYPICAL_SLIDES = 20
+NON_PARTNERSHIP_TYPICAL_WORDS_PER_SLIDE = 12.91
 
 
 DRIVE_SOURCES: list[ConfiguredDriveSource] = [
@@ -23,6 +25,10 @@ def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationCo
         {"name": "id", "generator": registry.identity_generator("id")},
         {"name": "name", "generator": registry.identity_generator("name")},
         {"name": "web_url", "generator": registry.identity_generator("webUrl")},
+        {
+            "name": "presentation_path",
+            "generator": registry.presentation_path_generator(),
+        },
         {"name": "slide_texts", "generator": registry.slide_texts_generator()},
         {
             "name": "last_modified",
@@ -65,8 +71,20 @@ def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationCo
                 int,
                 (
                     "Estimated total presentation duration in minutes, rounded to the "
-                    "nearest 15 minutes unless over 120 minutes, in which case round "
-                    "to the nearest hour."
+                    "nearest multiple of 5. Evaluate the actual deck content first, "
+                    "including size, density, pacing, and activity load. Use the "
+                    "folder's historical norm as context for what a typical deck "
+                    "usually runs: presentations in III. Partnerships are generally "
+                    "around 120 minutes, while presentations in the other workshop "
+                    "folders are generally around 90 minutes. Keep the estimate "
+                    "reasonably close to that norm when the deck seems typical for "
+                    "that folder, but move meaningfully shorter or longer when the "
+                    "actual content is clearly much smaller or larger than typical. "
+                    f"A typical non-partnership workshop in the current catalog is "
+                    f"about {NON_PARTNERSHIP_TYPICAL_SLIDES} slides and about "
+                    f"{NON_PARTNERSHIP_TYPICAL_WORDS_PER_SLIDE:.2f} average words per "
+                    "slide, and decks around that size should usually stay close to "
+                    "90 minutes unless their actual content suggests otherwise."
                 ),
             ),
         },
@@ -84,8 +102,9 @@ def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationCo
                 "activity_length_minutes",
                 int,
                 (
-                    "Approximate minutes of activity time in the presentation, using "
-                    "the same rounding rules as duration_estimate_mins."
+                    "Approximate minutes of activity time in the presentation, rounded "
+                    "to the nearest multiple of 5 using the same content-sensitive "
+                    "rounding approach as duration_estimate_mins."
                 ),
             ),
         },

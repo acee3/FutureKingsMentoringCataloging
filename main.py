@@ -147,6 +147,7 @@ def main():
         ai_metadata = generate_ai_metadata(
             openai_client,
             name=pptx_file["name"],
+            presentation_path=pptx_file.get("parentReference", {}).get("path", ""),
             slide_texts=slide_texts,
             number_of_slides=number_of_slides,
             average_words_per_slide=average_words_per_slide,

@@ -16,6 +16,7 @@ def generate_ai_metadata(
     client: OpenAI,
     *,
     name: str,
+    presentation_path: str,
     slide_texts: list[str],
     number_of_slides: int,
     average_words_per_slide: float,
@@ -38,6 +39,7 @@ def generate_ai_metadata(
                 "role": "user",
                 "content": (
                     f"Presentation name: {name}\n"
+                    f"Presentation path: {presentation_path or 'Unknown'}\n"
                     f"Number of slides: {number_of_slides}\n"
                     f"Average words per slide: {average_words_per_slide:.2f}\n"
                     "Entire slide text:\n"
