@@ -90,7 +90,8 @@ def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationCo
                         "Key Events",
                     ]
                 ],
-                "One or more applicable themes. Only use multiple themes when necessary.",
+                "One or more applicable themes. Only use multiple themes when "
+                "necessary and separate them with a comma.",
             ),
         },
         # The `field_name` passed to `ai_generator(...)` becomes the attribute
@@ -147,7 +148,8 @@ def get_presentation_columns(registry: GeneratorRegistry) -> list[PresentationCo
                     "Coding, Arts; Key Events -> Promotion, Orientation, BHM Panel, "
                     "Parent's Committee. Only use multiple subthemes when the deck "
                     "clearly covers more than one, and never assign a subtheme that "
-                    "belongs to a different theme."
+                    "belongs to a different theme. If there are multiple subthemes, "
+                    "separate them with a comma."
                 ),
             ),
         },
