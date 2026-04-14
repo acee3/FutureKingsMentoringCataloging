@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: fkm-vector-postgres
+    environment:
+      POSTGRES_DB: presentations
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d presentations"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - pgvector-data:/var/lib/postgresql/data
+
+  vector-search-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.vector-search
+    container_name: fkm-vector-search-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/presentations
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
+      AUTO_INDEX_ON_STARTUP: ${AUTO_INDEX_ON_STARTUP:-false}
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgvector-data:

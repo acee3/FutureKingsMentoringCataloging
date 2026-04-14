@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Presentation Vector Search</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">FKM catalog</p>
+          <h1>Spreadsheet view with semantic search</h1>
+          <p class="lede">
+            Upload an Excel workbook, index each row into Postgres with
+            pgvector, then browse the original columns or search by meaning.
+          </p>
+        </div>
+        <div class="status-card">
+          <div class="status-row">
+            <span>Uploaded workbook</span>
+            <code id="workbook-name">None</code>
+          </div>
+          <div class="status-row">
+            <span>Indexed rows</span>
+            <strong id="indexed-count">0</strong>
+          </div>
+          <label class="upload-field">
+            <span>Excel workbook (.xlsx)</span>
+            <input id="workbook-file-input" type="file" accept=".xlsx" />
+          </label>
+          <button id="upload-button" type="button">Upload and index</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <form id="semantic-search-form" class="search-bar">
+          <label class="search-field">
+            <span>Vector search</span>
+            <input
+              id="query-input"
+              name="query"
+              type="text"
+              placeholder='Budgeting and spending (needs vs. wants, expense planning, spending habits)'
+              required
+            />
+          </label>
+          <label class="top-k-field">
+            <span>Top K</span>
+            <input id="top-k-input" name="top_k" type="number" min="1" max="50" value="10" />
+          </label>
+          <button type="submit">Search</button>
+        </form>
+        <div id="search-error" class="message error hidden"></div>
+        <div id="search-results" class="results hidden"></div>
+      </section>
+
+      <section class="panel">
+        <div class="table-toolbar">
+          <div>
+            <h2>Workbook rows</h2>
+            <p>Click a header to sort. Use the filter boxes below each header.</p>
+          </div>
+          <button id="reset-filters-button" type="button" class="ghost-button">
+            Reset filters
+          </button>
+        </div>
+        <div id="table-container" class="table-container"></div>
+        <div class="pagination-bar">
+          <button id="prev-page-button" type="button" class="ghost-button">Previous</button>
+          <span id="page-status">Page 1 of 1</span>
+          <button id="next-page-button" type="button" class="ghost-button">Next</button>
+        </div>
+      </section>
+    </main>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

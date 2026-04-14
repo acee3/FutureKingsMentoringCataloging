@@ -1,6 +1,6 @@
 # fkm
 
-Builds an Excel catalog of workshop PowerPoints with a mix of direct metadata and AI-generated fields.
+Builds an Excel catalog of workshop PowerPoints with a mix of direct metadata and AI-generated fields, and now also includes a workbook-backed vector search app.
 
 ## What This Project Does
 
@@ -10,6 +10,8 @@ The main output is:
 
 - `output/workshop_catalog.xlsx`: the Excel file you care about
 - `output/workshop_catalog_checkpoint.json`: a progress file used to resume long runs
+
+The vector search app accepts an uploaded `.xlsx` workbook, turns each workbook row into searchable text, stores embeddings in Postgres with `pgvector`, and serves a spreadsheet-like UI plus semantic search.
 
 ## How The Code Is Organized
 
@@ -23,6 +25,7 @@ The main output is:
 - [`checkpoint.py`](/Users/acheung/Desktop/fkm/checkpoint.py): saves and restores progress
 - [`app_types.py`](/Users/acheung/Desktop/fkm/app_types.py): shared project types
 - [`microsoft/`](/Users/acheung/Desktop/fkm/microsoft): Microsoft Graph authentication, requests, and related types
+- [`vector_search_app/`](/Users/acheung/Desktop/fkm/vector_search_app): workbook indexing, FastAPI service, `pgvector` storage, and static UI
 
 ## How To Run It
 
@@ -46,6 +49,47 @@ If you want to ignore the checkpoint and start over:
 ```bash
 uv run python main.py --restart-from-scratch
 ```
+
+## Vector Search App
+
+### How Data Gets Into The App
+
+The vector search app does not scrape PowerPoints or talk to Microsoft Graph directly. It accepts an uploaded `.xlsx` workbook through the browser or CLI:
+
+1. Upload a workbook in the UI, or pass one to the CLI.
+2. Use the first row as column headers.
+3. Convert each later row into:
+   - row metadata as JSON
+   - one combined searchable text string built from the most useful columns
+4. Generate an embedding for that searchable text.
+5. Upsert the row plus embedding into Postgres with `pgvector`.
+
+That means the workbook remains the source of truth, while Postgres is only the search index.
+
+### Local Commands
+
+Index the workbook into Postgres:
+
+```bash
+uv run python -m vector_search_app.cli --workbook-path output/workshop_catalog.xlsx
+```
+
+Run the API locally:
+
+```bash
+uv run uvicorn vector_search_app.api:app --reload
+```
+
+### Docker Compose
+
+Start Postgres and the vector search service:
+
+```bash
+docker compose up --build
+```
+
+Open [http://localhost:8000](http://localhost:8000).
+Upload a workbook in the page and the app will index that file.
 
 ## How To Change Things
 
