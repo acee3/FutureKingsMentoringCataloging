@@ -64,8 +64,10 @@ def serialize_object_for_excel(obj: dict) -> dict:
 
     for key, value in obj.items():
         if key == "slide_texts":
+            if isinstance(value, (list, tuple, set)):
+                value = SLIDE_BREAK.join(map(str, value))
             serialized[key] = sanitize_excel_value(
-                SLIDE_BREAK.join(map(str, value)),
+                value,
                 field_name=key,
                 object_name=object_name,
             )

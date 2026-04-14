@@ -1,7 +1,10 @@
 """Thin wrappers around the Microsoft Graph HTTP API."""
 
+from __future__ import annotations
+
 import logging
 import time
+from typing import TYPE_CHECKING, Any
 
 import requests
 from requests import Response
@@ -9,11 +12,18 @@ from requests.exceptions import HTTPError, RequestException
 
 from .types import GraphDriveItem, GraphHeaders
 
+if TYPE_CHECKING:
+    from app_types import DeltaCollectionResult, DriveSource
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_REQUEST_TIMEOUT = (10, 15)
 DOWNLOAD_RETRY_ATTEMPTS = 4
 DOWNLOAD_RETRY_BACKOFF_SECONDS = 2
+DELTA_SELECT_FIELDS = (
+    "id,name,webUrl,lastModifiedDateTime,eTag,cTag,size,file,folder,"
+    "parentReference,deleted"
+)
 
 
 def _should_retry(response: Response | None, error: Exception | None) -> bool:
@@ -66,6 +76,79 @@ def get_drive_item_by_path(
     resp = requests.get(url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
+
+
+def _get_delta_url_for_source(source: "DriveSource") -> str:
+    """Build the initial Microsoft Graph delta URL for a configured source."""
+    drive_id = source["drive_id"]
+    folder_id = source.get("folder_id")
+    item_path = f"items/{folder_id}" if folder_id else "root"
+    return f"https://graph.microsoft.com/v1.0/drives/{drive_id}/{item_path}/delta"
+
+
+def get_drive_delta_page(
+    url_or_source: str | "DriveSource",
+    headers: GraphHeaders,
+    *,
+    token: str | None = None,
+) -> dict[str, Any]:
+    """Fetch one Microsoft Graph delta page.
+
+    A saved `@odata.nextLink` or `@odata.deltaLink` already contains all query
+    parameters, so extra `$select` parameters are only used for initial source
+    URLs.
+    """
+    params: dict[str, str] | None = None
+    if isinstance(url_or_source, str):
+        url = url_or_source
+    else:
+        url = _get_delta_url_for_source(url_or_source)
+        params = {"$select": DELTA_SELECT_FIELDS}
+        if token:
+            params["token"] = token
+
+    resp = requests.get(
+        url,
+        headers=headers,
+        params=params,
+        timeout=DEFAULT_REQUEST_TIMEOUT,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def collect_drive_delta(
+    source: "DriveSource",
+    headers: GraphHeaders,
+    previous_delta_link: str | None = None,
+    *,
+    token: str | None = None,
+) -> "DeltaCollectionResult":
+    """Collect all changed items for one source and return its next delta link."""
+    items: list[GraphDriveItem] = []
+    next_request: str | DriveSource = previous_delta_link or source
+
+    while True:
+        page = get_drive_delta_page(
+            next_request,
+            headers,
+            token=token if next_request is source else None,
+        )
+        items.extend(page.get("value", []))
+
+        next_link = page.get("@odata.nextLink")
+        if next_link:
+            next_request = next_link
+            token = None
+            continue
+
+        delta_link = page.get("@odata.deltaLink")
+        if not delta_link:
+            raise ValueError("Microsoft Graph delta response did not include a delta link")
+        return {
+            "items": items,
+            "delta_link": delta_link,
+        }
 
 
 def get_all_pptx_files(

@@ -54,3 +54,27 @@ class RunCheckpoint(TypedDict):
 
     processed_rows: list[dict[str, Any]]
     pending_items: list[GraphDriveItem]
+    delta_links: NotRequired[dict[str, str]]
+
+
+class DeltaSourceState(TypedDict):
+    """Saved Microsoft Graph delta state for one configured drive source."""
+
+    source_name: str
+    drive_id: str
+    delta_link: str
+    source_folder: NotRequired[str]
+    folder_id: NotRequired[str]
+
+
+class DeltaState(TypedDict):
+    """Saved Microsoft Graph delta state for all configured drive sources."""
+
+    sources: dict[str, DeltaSourceState]
+
+
+class DeltaCollectionResult(TypedDict):
+    """Changed Graph items plus the new delta link for a source."""
+
+    items: list[GraphDriveItem]
+    delta_link: str

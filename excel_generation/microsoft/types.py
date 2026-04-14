@@ -63,6 +63,12 @@ class GraphFolderFacet(TypedDict, total=False):
     childCount: int
 
 
+class GraphDeletedFacet(TypedDict, total=False):
+    """Deletion marker returned by Microsoft Graph delta queries."""
+
+    state: str
+
+
 class GraphDriveItem(TypedDict, total=False):
     """Subset of the Graph drive item schema used by this project."""
 
@@ -81,6 +87,7 @@ class GraphDriveItem(TypedDict, total=False):
     fileSystemInfo: NotRequired[GraphFileSystemInfo]
     shared: NotRequired[GraphShared]
     folder: NotRequired[GraphFolderFacet]
+    deleted: NotRequired[GraphDeletedFacet]
     configuredSourceFolder: NotRequired[str]
     configuredSourceName: NotRequired[str]
     odata_context: NotRequired[str]

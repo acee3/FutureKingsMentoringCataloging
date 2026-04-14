@@ -24,12 +24,14 @@ def load_checkpoint() -> RunCheckpoint:
     return {
         "processed_rows": data.get("processed_rows", []),
         "pending_items": data.get("pending_items", []),
+        "delta_links": data.get("delta_links", {}),
     }
 
 
 def save_checkpoint(
     processed_rows: list[dict[str, Any]],
     pending_items: list[GraphDriveItem],
+    delta_links: dict[str, str] | None = None,
 ) -> None:
     """Atomically save current progress.
 
@@ -43,6 +45,8 @@ def save_checkpoint(
         "processed_rows": processed_rows,
         "pending_items": pending_items,
     }
+    if delta_links is not None:
+        payload["delta_links"] = delta_links
     with temp_path.open("w", encoding="utf-8") as checkpoint_file:
         json.dump(payload, checkpoint_file, ensure_ascii=True, indent=2)
     temp_path.replace(CHECKPOINT_PATH)
