@@ -93,6 +93,29 @@ Upload a workbook in the page and the app will index that file.
 
 ## How To Change Things
 
+The safest approach for non-coders is to ask a coding agent to make changes
+instead of manually editing Python files. GitHub Copilot in Visual Studio Code is
+one option. Use the agent to edit the project, then rerun the Excel generator.
+
+Good agent prompts are specific and mention the files below:
+
+- "In `excel_generation/configuration.py`, add a new AI-generated Excel column
+  called `audience_level*`. It should classify each presentation as Elementary,
+  Middle School, High School, College, Parent, or General. Then explain how to
+  rerun the workbook."
+- "In `excel_generation/configuration.py`, add a new source folder under
+  `DRIVE_SOURCES` for the Documents drive at `<folder path>`."
+- "Change the way `duration_estimate_mins*` is calculated. Keep the Excel column
+  name the same, but update the AI instructions to prefer shorter estimates for
+  decks with fewer than 10 slides."
+
+After an agent changes columns, run this so every row is rebuilt with the new
+column values:
+
+```bash
+uv run python excel_generation/main.py --restart-from-scratch
+```
+
 ### Add A Column
 
 - Open [`excel_generation/configuration.py`](/Users/acheung/Desktop/fkm/excel_generation/configuration.py).
@@ -101,6 +124,16 @@ Upload a workbook in the page and the app will index that file.
 - For nested/non-standard values, add a generator method in [`excel_generation/generators.py`](/Users/acheung/Desktop/fkm/excel_generation/generators.py) and use it in the column list.
 - For an AI field, use `registry.ai_generator(field_name, output_type, description)`.
 - Put all shared typed structures in [`excel_generation/app_types.py`](/Users/acheung/Desktop/fkm/excel_generation/app_types.py) if a new one is needed.
+
+After an agent changes columns, run this so every row is rebuilt with the new
+column values:
+
+```bash
+uv run python excel_generation/main.py --restart-from-scratch
+```
+
+For most new spreadsheet columns, ask the agent for an AI-generated column. That
+usually only requires a change in `excel_generation/configuration.py`.
 
 ### Add A Folder To Check
 
