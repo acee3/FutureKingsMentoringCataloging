@@ -104,13 +104,28 @@ def _collect_delta_items(
     drive_sources: list[dict[str, Any]],
     headers: dict[str, str],
 ) -> tuple[list[GraphDriveItem], set[str], dict[str, str]]:
+    logger.info(
+        "Gathering SharePoint presentation rows from %s configured source(s).",
+        len(drive_sources),
+    )
     saved_delta_links = get_source_delta_links()
     latest_items_by_source_id: dict[str, GraphDriveItem] = {}
     removed_source_ids: set[str] = set()
     next_delta_links: dict[str, str] = {}
 
-    for source in drive_sources:
+    for source_index, source in enumerate(drive_sources, start=1):
         source_key = _get_source_key(source)
+        source_label = (
+            f"{source['name']}/{source['folder']}"
+            if source.get("folder")
+            else source["name"]
+        )
+        logger.info(
+            "Gathering SharePoint presentation rows from source %s/%s: %s.",
+            source_index,
+            len(drive_sources),
+            source_label,
+        )
         upsert_presentation_source(
             source_key=source_key,
             source_name=source["name"],
@@ -150,6 +165,11 @@ def _collect_delta_items(
             f"/{source['folder']}" if source.get("folder") else "",
         )
 
+    logger.info(
+        "Finished gathering SharePoint presentation rows: %s changed presentation(s), %s removed item(s).",
+        len(latest_items_by_source_id),
+        len(removed_source_ids),
+    )
     return list(latest_items_by_source_id.values()), removed_source_ids, next_delta_links
 
 
@@ -210,6 +230,11 @@ def run_catalog_reload(*, mark_started: bool = True) -> None:
             headers,
         )
         removed_rows = delete_presentations(sorted(removed_source_ids))
+        logger.info(
+            "Preparing to build %s presentation row(s); removed %s stale row(s).",
+            len(pending_items),
+            removed_rows,
+        )
         update_sync_status(
             status="running",
             total_items=len(pending_items),
@@ -218,8 +243,15 @@ def run_catalog_reload(*, mark_started: bool = True) -> None:
             removed_rows=removed_rows,
         )
 
+        total_items = len(pending_items)
         for item in pending_items:
             source_id = _get_source_id(item, default_drive_source["drive_id"])
+            logger.debug(
+                "Building presentation row %s/%s: %s.",
+                processed_items + 1,
+                total_items,
+                item.get("name", source_id),
+            )
             slide_texts, number_of_slides, average_words_per_slide = (
                 get_ai_generation_inputs(item, generator_registry)
             )
@@ -254,6 +286,12 @@ def run_catalog_reload(*, mark_started: bool = True) -> None:
                 indexed_rows=count_presentations(),
                 removed_rows=removed_rows,
             )
+            if processed_items == 1 or processed_items % 5 == 0 or processed_items == total_items:
+                logger.info(
+                    "Built %s/%s presentation row(s).",
+                    processed_items,
+                    total_items,
+                )
 
         for source in drive_sources:
             source_key = _get_source_key(source)
