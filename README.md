@@ -2,30 +2,30 @@
 
 Internal catalog app for FKM workshop PowerPoints.
 
-The app scans configured SharePoint document libraries for `.pptx` files, extracts slide text, asks OpenAI to generate configured spreadsheet fields, stores the current catalog in Postgres with `pgvector`, provides semantic search, and exports the current catalog as Excel.
+The app scans configured SharePoint document libraries for `.pptx` files, extracts slide text, asks OpenAI to generate configured spreadsheet fields, stores the current catalog in SQLite, provides semantic search, and exports the current catalog as Excel.
 
 ## App Shape
 
 - [`catalog_app/api.py`](/Users/acheung/Desktop/fkm/catalog_app/api.py): FastAPI app, static UI, reload/search/export endpoints
 - [`catalog_app/catalog_sync.py`](/Users/acheung/Desktop/fkm/catalog_app/catalog_sync.py): manual SharePoint reload workflow
-- [`catalog_app/db/`](/Users/acheung/Desktop/fkm/catalog_app/db): schema and current-state Postgres helpers
+- [`catalog_app/db/`](/Users/acheung/Desktop/fkm/catalog_app/db): schema and current-state SQLite helpers
 - [`catalog_app/generation/configuration.py`](/Users/acheung/Desktop/fkm/catalog_app/generation/configuration.py): SharePoint sources and official Excel column configuration
 - [`catalog_app/generation/`](/Users/acheung/Desktop/fkm/catalog_app/generation): Microsoft Graph, PowerPoint parsing, OpenAI metadata, and Excel export helpers
 - [`catalog_app/static/`](/Users/acheung/Desktop/fkm/catalog_app/static): browser UI
 
 ## Current-State Storage
 
-This app is designed for a small Azure App Service deployment, so Postgres stores current state only, not history.
+This app is designed for a small Azure App Service deployment, so SQLite stores current state only, not history.
 
 - `presentations` stores one row per current PowerPoint. If Microsoft Graph reports a file was deleted or removed from the configured folders, the row is hard-deleted so search/export do not show stale files and the database does not grow forever.
 - `presentation_sources` stores one row per configured SharePoint source plus its latest Microsoft Graph delta link. Delta links let Reload ask Graph for changes since the last successful reload.
 - `sync_status` contains exactly one row. Each Reload overwrites it with the latest status, counts, timestamps, and error. Historical reload runs are intentionally not retained.
 
-The full spreadsheet row is stored in `presentations.metadata` as JSON. Stable operational fields such as source key, drive ID, item ID, web URL, embedding, and timestamps also have normal columns so the app can update and search efficiently.
+The full spreadsheet row is stored in `presentations.metadata` as JSON text. Stable operational fields such as source key, drive ID, item ID, web URL, embedding, and timestamps also have normal columns so the app can update efficiently. Embeddings are stored as JSON arrays, and semantic search computes cosine similarity in Python.
 
 ## Local Run
 
-Start Postgres and the app:
+Start the app with a persistent SQLite volume:
 
 ```bash
 docker compose up --build
@@ -39,12 +39,14 @@ Useful local command without Docker:
 uv run uvicorn catalog_app.api:app --reload
 ```
 
+Without Docker, the database defaults to [`catalog.sqlite3`](/Users/acheung/Desktop/fkm/catalog.sqlite3) in the project root. Set `DATABASE_PATH` to use another SQLite file.
+
 ## Workflow
 
 1. Click **Reload from SharePoint**.
 2. The app uses Microsoft Graph delta queries to find changed/deleted PowerPoints.
-3. Changed PowerPoints are parsed, classified with OpenAI, embedded, and upserted into Postgres.
-4. Deleted or removed PowerPoints are hard-deleted from Postgres.
+3. Changed PowerPoints are parsed, classified with OpenAI, embedded, and upserted into SQLite.
+4. Deleted or removed PowerPoints are hard-deleted from SQLite.
 5. Use the table, semantic search, or **Export Excel**.
 
 The first successful reload establishes the baseline delta links. Later reloads use those links to fetch only changes.
@@ -53,10 +55,9 @@ The first successful reload establishes the baseline delta links. Later reloads 
 
 Application:
 
-- `DATABASE_URL`: Postgres connection string
+- `DATABASE_PATH`: SQLite database path, defaults to `catalog.sqlite3`
 - `OPENAI_API_KEY`: OpenAI API key
 - `EMBEDDING_MODEL`: optional, defaults to `text-embedding-3-small`
-- `EMBEDDING_DIMENSION`: optional, defaults to `1536`
 
 Microsoft Graph app credentials:
 
@@ -91,6 +92,8 @@ uv run uvicorn catalog_app.api:app --host 0.0.0.0 --port ${PORT:-${WEBSITES_PORT
 ```
 
 For Azure App Service custom containers, configure the app settings above and set the container port setting if your plan requires it.
+
+For Docker Compose, the SQLite database is stored at `/data/catalog.sqlite3` inside the container and persisted in the `sqlite-data` volume. For Azure custom containers, mount persistent storage and set `DATABASE_PATH` to a path on that mount, such as `/data/catalog.sqlite3`.
 
 ## Changing The Catalog
 

@@ -59,7 +59,7 @@ class DeltaCollectionResult(TypedDict):
 
 @dataclass(frozen=True)
 class IndexedWorkbookRow:
-    """A generated catalog row prepared for pgvector indexing."""
+    """A generated catalog row prepared for embedding-backed indexing."""
 
     source_id: str
     title: str

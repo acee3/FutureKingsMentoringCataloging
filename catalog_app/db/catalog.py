@@ -2,14 +2,46 @@
 
 from collections.abc import Sequence
 import json
+import math
 
 from catalog_app.db.connection import get_connection
 from catalog_app.models import PresentationRecord, SearchResult, SyncStatus
 from catalog_app.app_types import IndexedWorkbookRow
 
 
-def _vector_literal(values: Sequence[float]) -> str:
-    return "[" + ",".join(f"{value:.12f}" for value in values) + "]"
+def _empty_to_none(value: str | None) -> str | None:
+    return value or None
+
+
+def _embedding_json(values: Sequence[float]) -> str:
+    return json.dumps(list(values), separators=(",", ":"))
+
+
+def _loads_metadata(value: str | bytes | bytearray | dict) -> dict:
+    if isinstance(value, dict):
+        return value
+    loaded = json.loads(value)
+    if not isinstance(loaded, dict):
+        raise ValueError("presentation metadata must be a JSON object")
+    return loaded
+
+
+def _cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
+    if len(left) != len(right):
+        return 0.0
+
+    dot_product = 0.0
+    left_magnitude = 0.0
+    right_magnitude = 0.0
+    for left_value, right_value in zip(left, right, strict=True):
+        dot_product += left_value * right_value
+        left_magnitude += left_value * left_value
+        right_magnitude += right_value * right_value
+
+    denominator = math.sqrt(left_magnitude) * math.sqrt(right_magnitude)
+    if denominator == 0:
+        return 0.0
+    return dot_product / denominator
 
 
 def upsert_presentations(
@@ -47,20 +79,20 @@ def upsert_presentations(
                         updated_at
                     )
                     VALUES (
-                        %(source_id)s,
-                        %(title)s,
-                        %(workbook_name)s,
-                        %(sheet_name)s,
-                        %(row_number)s,
-                        NULLIF(%(source_key)s, ''),
-                        NULLIF(%(drive_id)s, ''),
-                        NULLIF(%(item_id)s, ''),
-                        NULLIF(%(web_url)s, ''),
-                        NULLIF(%(last_modified_at)s, '')::timestamptz,
-                        %(metadata)s::jsonb,
-                        %(searchable_text)s,
-                        %(embedding)s::vector,
-                        NOW()
+                        :source_id,
+                        :title,
+                        :workbook_name,
+                        :sheet_name,
+                        :row_number,
+                        :source_key,
+                        :drive_id,
+                        :item_id,
+                        :web_url,
+                        :last_modified_at,
+                        :metadata,
+                        :searchable_text,
+                        :embedding,
+                        CURRENT_TIMESTAMP
                     )
                     ON CONFLICT (source_id) DO UPDATE SET
                         title = EXCLUDED.title,
@@ -75,7 +107,7 @@ def upsert_presentations(
                         metadata = EXCLUDED.metadata,
                         searchable_text = EXCLUDED.searchable_text,
                         embedding = EXCLUDED.embedding,
-                        updated_at = NOW()
+                        updated_at = CURRENT_TIMESTAMP
                     """,
                     {
                         "source_id": row.source_id,
@@ -83,14 +115,14 @@ def upsert_presentations(
                         "workbook_name": row.workbook_name,
                         "sheet_name": row.sheet_name,
                         "row_number": row.row_number,
-                        "source_key": source_key,
-                        "drive_id": drive_id,
-                        "item_id": item_id,
-                        "web_url": web_url,
-                        "last_modified_at": row.last_modified_at or "",
+                        "source_key": _empty_to_none(source_key),
+                        "drive_id": _empty_to_none(drive_id),
+                        "item_id": _empty_to_none(item_id),
+                        "web_url": _empty_to_none(web_url),
+                        "last_modified_at": _empty_to_none(row.last_modified_at),
                         "metadata": json.dumps(row.metadata),
                         "searchable_text": row.searchable_text,
-                        "embedding": _vector_literal(embedding),
+                        "embedding": _embedding_json(embedding),
                     },
                 )
         connection.commit()
@@ -105,9 +137,10 @@ def delete_presentations(source_ids: Sequence[str]) -> int:
 
     with get_connection() as connection:
         with connection.cursor() as cursor:
+            placeholders = ",".join("?" for _ in source_ids)
             cursor.execute(
-                "DELETE FROM presentations WHERE source_id = ANY(%s)",
-                (list(source_ids),),
+                f"DELETE FROM presentations WHERE source_id IN ({placeholders})",
+                tuple(source_ids),
             )
             deleted_count = cursor.rowcount
         connection.commit()
@@ -139,13 +172,13 @@ def upsert_presentation_source(
                     updated_at
                 )
                 VALUES (
-                    %(source_key)s,
-                    %(source_name)s,
-                    %(drive_id)s,
-                    %(folder_id)s,
-                    %(folder_path)s,
-                    %(delta_link)s,
-                    NOW()
+                    :source_key,
+                    :source_name,
+                    :drive_id,
+                    :folder_id,
+                    :folder_path,
+                    :delta_link,
+                    CURRENT_TIMESTAMP
                 )
                 ON CONFLICT (source_key) DO UPDATE SET
                     source_name = EXCLUDED.source_name,
@@ -153,7 +186,7 @@ def upsert_presentation_source(
                     folder_id = EXCLUDED.folder_id,
                     folder_path = EXCLUDED.folder_path,
                     delta_link = EXCLUDED.delta_link,
-                    updated_at = NOW()
+                    updated_at = CURRENT_TIMESTAMP
                 """,
                 {
                     "source_key": source_key,
@@ -213,15 +246,15 @@ def update_sync_status(
                 )
                 VALUES (
                     1,
-                    %(status)s,
-                    %(total_items)s,
-                    %(processed_items)s,
-                    %(indexed_rows)s,
-                    %(removed_rows)s,
-                    CASE WHEN %(started)s THEN NOW() ELSE NULL END,
-                    CASE WHEN %(finished)s THEN NOW() ELSE NULL END,
-                    %(error)s,
-                    NOW()
+                    :status,
+                    :total_items,
+                    :processed_items,
+                    :indexed_rows,
+                    :removed_rows,
+                    CASE WHEN :started THEN CURRENT_TIMESTAMP ELSE NULL END,
+                    CASE WHEN :finished THEN CURRENT_TIMESTAMP ELSE NULL END,
+                    :error,
+                    CURRENT_TIMESTAMP
                 )
                 ON CONFLICT (id) DO UPDATE SET
                     status = EXCLUDED.status,
@@ -230,15 +263,15 @@ def update_sync_status(
                     indexed_rows = EXCLUDED.indexed_rows,
                     removed_rows = EXCLUDED.removed_rows,
                     started_at = CASE
-                        WHEN %(started)s THEN NOW()
+                        WHEN :started THEN CURRENT_TIMESTAMP
                         ELSE sync_status.started_at
                     END,
                     finished_at = CASE
-                        WHEN %(finished)s THEN NOW()
+                        WHEN :finished THEN CURRENT_TIMESTAMP
                         ELSE NULL
                     END,
                     error = EXCLUDED.error,
-                    updated_at = NOW()
+                    updated_at = CURRENT_TIMESTAMP
                 """,
                 {
                     "status": status,
@@ -246,8 +279,8 @@ def update_sync_status(
                     "processed_items": processed_items,
                     "indexed_rows": indexed_rows,
                     "removed_rows": removed_rows,
-                    "started": started,
-                    "finished": finished,
+                    "started": int(started),
+                    "finished": int(finished),
                     "error": error,
                 },
             )
@@ -266,8 +299,8 @@ def get_sync_status() -> SyncStatus:
                     processed_items,
                     indexed_rows,
                     removed_rows,
-                    started_at::text AS started_at,
-                    finished_at::text AS finished_at,
+                    started_at,
+                    finished_at,
                     error
                 FROM sync_status
                 WHERE id = 1
@@ -283,7 +316,7 @@ def get_sync_status() -> SyncStatus:
             indexed_rows=0,
             removed_rows=0,
         )
-    return SyncStatus(**row)
+    return SyncStatus(**dict(row))
 
 
 def fetch_presentations(limit: int = 10, offset: int = 0) -> list[PresentationRecord]:
@@ -294,14 +327,19 @@ def fetch_presentations(limit: int = 10, offset: int = 0) -> list[PresentationRe
                 SELECT source_id, title, workbook_name, sheet_name, row_number, metadata
                 FROM presentations
                 ORDER BY sheet_name, row_number
-                LIMIT %s
-                OFFSET %s
+                LIMIT ?
+                OFFSET ?
                 """,
                 (limit, offset),
             )
             results = cursor.fetchall()
 
-    return [PresentationRecord(**row) for row in results]
+    records: list[PresentationRecord] = []
+    for row in results:
+        values = dict(row)
+        values["metadata"] = _loads_metadata(row["metadata"])
+        records.append(PresentationRecord(**values))
+    return records
 
 
 def fetch_all_presentation_metadata() -> list[dict]:
@@ -317,7 +355,7 @@ def fetch_all_presentation_metadata() -> list[dict]:
             )
             results = cursor.fetchall()
 
-    return [dict(row["metadata"]) for row in results]
+    return [_loads_metadata(row["metadata"]) for row in results]
 
 
 def count_presentations() -> int:
@@ -332,7 +370,6 @@ def search_presentations(
     query_embedding: Sequence[float],
     top_k: int,
 ) -> list[SearchResult]:
-    vector = _vector_literal(query_embedding)
     with get_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -344,13 +381,29 @@ def search_presentations(
                     sheet_name,
                     row_number,
                     metadata,
-                    1 - (embedding <=> %s::vector) AS score
+                    embedding
                 FROM presentations
-                ORDER BY embedding <=> %s::vector
-                LIMIT %s
                 """,
-                (vector, vector, top_k),
             )
             results = cursor.fetchall()
 
-    return [SearchResult(**row) for row in results]
+    scored_results: list[SearchResult] = []
+    for row in results:
+        embedding = json.loads(row["embedding"])
+        if not isinstance(embedding, list):
+            continue
+        score = _cosine_similarity(query_embedding, embedding)
+        scored_results.append(
+            SearchResult(
+                source_id=row["source_id"],
+                title=row["title"],
+                workbook_name=row["workbook_name"],
+                sheet_name=row["sheet_name"],
+                row_number=row["row_number"],
+                metadata=_loads_metadata(row["metadata"]),
+                score=score,
+            )
+        )
+
+    scored_results.sort(key=lambda result: result.score, reverse=True)
+    return scored_results[:top_k]
