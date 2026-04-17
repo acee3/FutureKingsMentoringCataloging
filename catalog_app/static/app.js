@@ -9,14 +9,25 @@ const state = {
 };
 
 const HIDDEN_COLUMNS = new Set(["slide_texts"]);
-const STATUS_POLL_MS = 5000;
+const STATUS_POLL_MS = 10000;
+const RETRY_LATER_MESSAGE = "The server is not responding. Try again in a moment.";
 let statusPollId = null;
 
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+  } catch {
+    throw new Error(RETRY_LATER_MESSAGE);
+  }
+
+  if (response.status >= 500) {
+    throw new Error(RETRY_LATER_MESSAGE);
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Request failed: ${response.status}`);
