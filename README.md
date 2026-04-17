@@ -6,12 +6,12 @@ The app scans configured SharePoint document libraries for `.pptx` files, extrac
 
 ## App Shape
 
-- [`catalog_app/api.py`](/Users/acheung/Desktop/fkm/catalog_app/api.py): FastAPI app, static UI, reload/search/export endpoints
-- [`catalog_app/catalog_sync.py`](/Users/acheung/Desktop/fkm/catalog_app/catalog_sync.py): manual SharePoint reload workflow
-- [`catalog_app/db/`](/Users/acheung/Desktop/fkm/catalog_app/db): schema and current-state SQLite helpers
-- [`catalog_app/generation/configuration.py`](/Users/acheung/Desktop/fkm/catalog_app/generation/configuration.py): SharePoint sources and official Excel column configuration
-- [`catalog_app/generation/`](/Users/acheung/Desktop/fkm/catalog_app/generation): Microsoft Graph, PowerPoint parsing, OpenAI metadata, and Excel export helpers
-- [`catalog_app/static/`](/Users/acheung/Desktop/fkm/catalog_app/static): browser UI
+- [`catalog_app/api.py`](catalog_app/api.py): FastAPI app, static UI, reload/search/export endpoints
+- [`catalog_app/catalog_sync.py`](catalog_app/catalog_sync.py): manual SharePoint reload workflow
+- [`catalog_app/db/`](catalog_app/db): schema and current-state SQLite helpers
+- [`catalog_app/generation/configuration.py`](catalog_app/generation/configuration.py): SharePoint sources and official Excel column configuration
+- [`catalog_app/generation/`](catalog_app/generation): Microsoft Graph, PowerPoint parsing, OpenAI metadata, and Excel export helpers
+- [`catalog_app/static/`](catalog_app/static): browser UI
 
 ## Current-State Storage
 
@@ -36,10 +36,10 @@ Open [http://localhost:8000](http://localhost:8000).
 Useful local command without Docker:
 
 ```bash
-uv run uvicorn catalog_app.api:app --reload
+uv run python app.py
 ```
 
-Without Docker, the database defaults to [`catalog.sqlite3`](/Users/acheung/Desktop/fkm/catalog.sqlite3) in the project root. Set `DATABASE_PATH` to use another SQLite file.
+Without Docker, the database defaults to [`catalog.sqlite3`](catalog.sqlite3) in the project root. Set `DATABASE_PATH` to use another SQLite file.
 
 ## Workflow
 
@@ -83,7 +83,7 @@ With that setup, requests from outside your organization are blocked before they
 
 ## Azure Container Notes
 
-The production image is built from [`Dockerfile.catalog-app`](/Users/acheung/Desktop/fkm/Dockerfile.catalog-app).
+The production image is built from [`Dockerfile.catalog-app`](Dockerfile.catalog-app).
 
 The container starts:
 
@@ -95,9 +95,11 @@ For Azure App Service custom containers, configure the app settings above and se
 
 For Docker Compose, the SQLite database is stored at `/data/catalog.sqlite3` inside the container and persisted in the `sqlite-data` volume. For Azure custom containers, mount persistent storage and set `DATABASE_PATH` to a path on that mount, such as `/data/catalog.sqlite3`.
 
+For Azure App Service's Python build/runtime flow, use `python app.py` as the startup command. Set `DATABASE_PATH` to a persistent path such as `/home/data/catalog.sqlite3`.
+
 ## Changing The Catalog
 
-Edit [`catalog_app/generation/configuration.py`](/Users/acheung/Desktop/fkm/catalog_app/generation/configuration.py).
+Edit [`catalog_app/generation/configuration.py`](catalog_app/generation/configuration.py).
 
 - `DRIVE_SOURCES` controls which SharePoint drives/folders are scanned.
 - `get_presentation_columns(...)` controls the official Excel export columns.
